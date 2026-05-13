@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CapBot</title>
+  <meta name="description" content="CapBot – your AI prompt generator for grammar checking, performance analysis, and professional emails." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Design Tokens ────────────────────────────────────── */
+    :root {
+      --bg:            #0d1117;
+      --surface:       rgba(255,255,255,0.04);
+      --surface-alt:   rgba(255,255,255,0.06);
+      --surface-hover: rgba(255,255,255,0.09);
+      --border:        rgba(255,255,255,0.08);
+      --accent:        #00C9A7;
+      --accent-hover:  #00A88C;
+      --accent-glow:   rgba(0,201,167,0.18);
+      --text:          #F0F0F0;
+      --text-muted:    rgba(255,255,255,0.50);
+      --text-dim:      rgba(255,255,255,0.25);
+      --success:       #00C9A7;
+      --success-bg:    rgba(0,201,167,0.12);
+      --warn:          #ff6b6b;
+      --radius:        16px;
+      --radius-sm:     10px;
+      --sidebar-w:     220px;
+      --navbar-h:      64px;
+      --font:          'Plus Jakarta Sans', system-ui, sans-serif;
+      --mono:          'Plus Jakarta Sans', monospace;
+      --shadow:        0 8px 32px rgba(0,0,0,0.5);
+      --transition:    0.2s ease;
+      --glass:         rgba(255,255,255,0.05);
+      --blur:          blur(24px) saturate(180%);
+    }
+
+    /* ─── Background: Fluid Organic Layers ─────────────────── */
+
+    /* Base dark canvas */
+    .bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: #0e0e0e;
+    }
+
+    /* Paper-cut wave layers */
+    .bg-wave-1 {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        /* Layer 5 back */
+        linear-gradient(180deg, #131313 0%, transparent 40%);
+    }
+
+    .bg-wave-2 { display: none; }
+    .bg-wave-3 { display: none; }
+
+    /* Teal accent glow — subtle, top right */
+    .bg-teal {
+      position: fixed;
+      top: -100px;
+      right: 10%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(0,201,167,0.06) 0%, transparent 70%);
+      border-radius: 50%;
+      z-index: 0;
+      pointer-events: none;
+      filter: blur(80px);
+    }
+
+    /* Dark sphere — top right */
+    .bg-sphere {
+      position: fixed;
+      top: -20px;
+      right: 20px;
+      width: 100px;
+      height: 100px;
+      background: radial-gradient(circle at 32% 30%, #3a3a3a 0%, #1e1e1e 35%, #0a0a0a 70%, #030303 100%);
+      border-radius: 50%;
+      z-index: 50;
+      pointer-events: none;
+      box-shadow:
+        inset -6px -6px 16px rgba(0,0,0,0.9),
+        inset 3px 3px 10px rgba(255,255,255,0.05),
+        0 16px 48px rgba(0,0,0,0.7);
+    }
+
+    /* Dot grid — top left only */
+    .bg-dots {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 160px;
+      height: 56px;
+      z-index: 50;
+      pointer-events: none;
+      background-image: radial-gradient(circle, #333 1.5px, transparent 1.5px);
+      background-size: 18px 18px;
+      opacity: 1;
+    }
+
+    /* Vignette */
+    .bg-vignette {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 130% 130% at 50% 50%, transparent 30%, rgba(0,0,0,0.75) 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ─── Noise Texture Overlay ─────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+
+    /* ─── Reset ────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    html { background: #0a0a0a; }
+    body {
+      font-family: var(--font);
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Scrollbar ────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+    /* ─── Navbar ───────────────────────────────────────────── */
+    nav#navbar {
+      height: var(--navbar-h);
+      min-height: var(--navbar-h);
+      background: rgba(10,10,10,0.5);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      border-top: 1px solid rgba(0,201,167,0.4);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      position: relative;
+      z-index: 100;
+      flex-shrink: 0;
+      box-shadow: 0 0 30px rgba(0,201,167,0.06);
+    }
+
+    .nav-logo {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #fff 0%, #aaa 50%, #fff 100%);
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shine 5s linear infinite;
+      user-select: none;
+    }
+
+    @keyframes shine {
+      to { background-position: 200% center; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ─── App Body ─────────────────────────────────────────── */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── Sidebar ──────────────────────────────────────────── */
+    aside#sidebar {
+      width: 240px;
+      min-width: 240px;
+      background: rgba(0,0,0,0.12);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border-right: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      gap: 2px;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    aside#sidebar::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,201,167,0.3), transparent);
+    }
+
+    .sidebar-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.2);
+      padding: 0 12px 12px;
+    }
+
+    .nav-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
+      color: rgba(255,255,255,0.4);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+      position: relative;
+    }
+
+    .nav-btn .icon {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.06);
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn .icon svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .nav-btn .label {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255,255,255,0.05);
+      color: rgba(255,255,255,0.8);
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    .nav-btn:hover .icon {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .nav-btn.active {
+      background: linear-gradient(90deg, rgba(0,201,167,0.12) 0%, rgba(0,201,167,0.04) 100%);
+      color: #00C9A7;
+      border-color: rgba(0,201,167,0.2);
+    }
+
+    .nav-btn.active .icon {
+      background: rgba(0,201,167,0.14);
+      border-color: rgba(0,201,167,0.28);
+      box-shadow: 0 0 14px rgba(0,201,167,0.2);
+    }
+
+    .nav-btn.active::before {
+      content: '';
+      position: absolute;
+      left: -16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 50%;
+      background: #00C9A7;
+      border-radius: 0 3px 3px 0;
+      box-shadow: 0 0 8px rgba(0,201,167,0.6);
+    }
+
+    /* ─── Main Area ────────────────────────────────────────── */
+    main#main {
+      flex: 1;
+      display: flex;
+      gap: 0;
+      overflow: hidden;
+      background: transparent;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── Panels ───────────────────────────────────────────── */
+    .panel {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 16px 20px;
+      gap: 12px;
+      background: rgba(0,0,0,0.08);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-left: 2px solid rgba(0,201,167,0.2);
+      box-shadow: inset 2px 0 20px rgba(0,201,167,0.04);
+    }
+
+    #panel-output {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 16px 20px;
+      gap: 12px;
+      background: rgba(0,0,0,0.06);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .panel + .panel {
+      border-left: 1px solid var(--border);
+    }
+
+    .panel-header {
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .panel-heading {
+      font-size: 20px;
+      font-weight: 700;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    .panel-body {
+      flex: 1;
+      padding: 0;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    /* ─── Form Elements ────────────────────────────────────── */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+
+    input[type="text"],
+    select,
+    textarea {
+      background: rgba(10,10,10,0.75);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13.5px;
+      padding: 10px 12px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+    input[type="text"]::placeholder,
+    textarea::placeholder {
+      color: var(--text-dim);
+    }
+
+    input[type="text"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0,201,167,0.25), 0 0 20px rgba(0,201,167,0.12);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 160px;
+      line-height: 1.65;
+    }
+
+    textarea.tall { flex: 1; min-height: 200px; }
+
+    select {
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237a8499' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    select option {
+      background: var(--surface-alt);
+      color: var(--text);
+    }
+
+    /* ─── Character Counter ────────────────────────────────── */
+    .char-counter {
+      display: flex;
+      justify-content: flex-end;
+      font-size: 11.5px;
+      font-family: var(--mono);
+      color: var(--text-muted);
+      transition: color var(--transition);
+    }
+
+    .char-counter.warn  { color: var(--warn); }
+    .char-counter.error { color: #f56565; }
+
+    /* ─── Mode Toggle ──────────────────────────────────────── */
+    .mode-toggle {
+      display: flex;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 3px;
+      gap: 3px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 7px 10px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .mode-btn:hover { color: var(--text); }
+
+    .mode-btn.active {
+      background: var(--surface-hover);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* ─── Buttons ──────────────────────────────────────────── */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+      align-self: flex-start;
+      letter-spacing: 0.02em;
+      box-shadow: 0 0 20px rgba(0,201,167,0.25), 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 0 32px rgba(0,201,167,0.4), 0 6px 20px rgba(0,0,0,0.5);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      background: var(--surface-hover);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn-copy:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+      border-color: rgba(255,255,255,0.2);
+    }
+
+    .btn-copy.copied {
+      background: var(--success-bg);
+      color: var(--success);
+      border-color: rgba(0,201,167,0.3);
+    }
+
+    /* ─── Category Panels (views) ──────────────────────────── */
+    .cat-view { display: none; flex-direction: column; gap: 14px; flex: 1; }
+    .cat-view.visible { display: flex; animation: fadeIn 0.18s ease both; }
+
+    /* ─── Output Area ──────────────────────────────────────── */
+    .output-header {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      padding: 0;
+    }
+
+    .output-meta {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .output-footer {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: flex-end;
+      padding: 0;
+    }
+
+    #output-box {
+      flex: 1;
+      background: rgba(10,10,10,0.75);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.75;
+      color: var(--text);
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      resize: none;
+      outline: none;
+      margin: 0;
+      min-height: 0;
+      transition: border-color var(--transition);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    #output-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,201,167,0.25), 0 0 20px rgba(0,201,167,0.12); }
+
+    #output-box.empty { color: var(--text-dim); }
+
+    /* ─── Divider ──────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* ─── Animations ───────────────────────────────────────── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .cat-view.visible { animation: fadeIn 0.22s ease both; }
+
+    /* ─── Responsive ───────────────────────────────────────── */
+    @media (max-width: 780px) {
+      :root { --sidebar-w: 56px; }
+      .nav-btn .label { display: none; }
+      .nav-btn.active::before { display: none; }
+      .sidebar-label { display: none; }
+      main#main { flex-direction: column; }
+      .panel + .panel { border-left: none; border-top: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Paper-cut wave background -->
+  <div class="bg-canvas"></div>
+  <svg style="position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;" preserveAspectRatio="none" viewBox="0 0 1440 900" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="ws"><feGaussianBlur stdDeviation="8"/></filter>
+    </defs>
+    <!-- Wave shadows then layers -->
+    <path d="M0 80 Q360 200 720 120 Q1080 40 1440 160 L1440 220 Q1080 100 720 180 Q360 260 0 140Z" fill="#000" opacity="0.5" filter="url(#ws)"/>
+    <path d="M0 70 Q360 190 720 110 Q1080 30 1440 150 L1440 210 Q1080 90 720 170 Q360 250 0 130Z" fill="#1a1a1a"/>
+    <path d="M0 240 Q300 360 600 280 Q900 200 1440 330 L1440 400 Q900 270 600 350 Q300 430 0 310Z" fill="#000" opacity="0.45" filter="url(#ws)"/>
+    <path d="M0 228 Q300 348 600 268 Q900 188 1440 318 L1440 388 Q900 258 600 338 Q300 418 0 298Z" fill="#181818"/>
+    <path d="M0 430 Q360 360 700 400 Q1050 438 1440 370 L1440 460 Q1050 528 700 490 Q360 452 0 520Z" fill="#000" opacity="0.4" filter="url(#ws)"/>
+    <path d="M0 418 Q360 348 700 388 Q1050 426 1440 358 L1440 448 Q1050 516 700 478 Q360 440 0 508Z" fill="#1c1c1c"/>
+    <path d="M0 600 Q400 545 720 580 Q1080 615 1440 558 L1440 660 Q1080 718 720 683 Q400 648 0 703Z" fill="#000" opacity="0.35" filter="url(#ws)"/>
+    <path d="M0 588 Q400 533 720 568 Q1080 603 1440 546 L1440 648 Q1080 706 720 671 Q400 636 0 691Z" fill="#1e1e1e"/>
+    <path d="M0 750 Q360 720 700 742 Q1060 764 1440 730 L1440 900 L0 900Z" fill="#181818"/>
+  </svg>
+  <div class="bg-teal"></div>
+  <div class="bg-sphere"></div>
+  <!-- Small extra sphere -->
+  <div style="position:fixed;top:80px;right:8px;width:52px;height:52px;background:radial-gradient(circle at 33% 30%, #2e2e2e 0%, #141414 50%, #040404 100%);border-radius:50%;z-index:50;pointer-events:none;box-shadow:inset -4px -4px 10px rgba(0,0,0,0.9),0 10px 30px rgba(0,0,0,0.6);"></div>
+  <!-- Bottom right small sphere -->
+  <div style="position:fixed;bottom:12%;right:3%;width:36px;height:36px;background:radial-gradient(circle at 33% 30%, #282828 0%, #111 50%, #030303 100%);border-radius:50%;z-index:2;pointer-events:none;box-shadow:inset -3px -3px 8px rgba(0,0,0,0.9),0 8px 20px rgba(0,0,0,0.5);"></div>
+  <div class="bg-dots"></div>
+  <div class="bg-vignette"></div>
+
+  <!-- ─── Navbar ──────────────────────────────────────────── -->
+  <nav id="navbar">
+    <div class="nav-logo">CAPBOT <span style="font-size:11px;font-weight:400;opacity:0.4;letter-spacing:0.1em;">V0.1</span></div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.3);">
+      <span style="width:6px;height:6px;background:#00C9A7;border-radius:50%;display:inline-block;box-shadow:0 0 8px rgba(0,201,167,0.6);animation:pulse 2s infinite;"></span>
+      Active
+    </div>
+  </nav>
+
+  <div class="app-body">
+
+    <!-- ─── Sidebar ─────────────────────────────────────────── -->
+    <aside id="sidebar">
+      <div class="sidebar-label">Outils</div>
+
+      <button class="nav-btn" id="btn-grammar" onclick="switchCategory('grammar')">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </span>
+        <span class="label">Grammaire</span>
+      </button>
+
+      <button class="nav-btn active" id="btn-analyser" onclick="switchCategory('analyser')">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </span>
+        <span class="label">Analyser</span>
+      </button>
+      <div id="analyser-subs" style="display:none;flex-direction:column;gap:2px;overflow:hidden;transition:all 0.2s ease;">
+        <button class="nav-btn nav-sub" id="btn-analyser-henkel" onclick="switchAnalyser('henkel')" style="padding-left:44px;font-size:12px;color:rgba(255,255,255,0.25);">
+          <span class="label">↳ Henkel</span>
+        </button>
+        <button class="nav-btn nav-sub" id="btn-analyser-samsung" onclick="switchAnalyser('samsung')" style="padding-left:44px;font-size:12px;color:rgba(255,255,255,0.25);">
+          <span class="label">↳ Samsung</span>
+        </button>
+        <button class="nav-btn nav-sub" id="btn-analyser-slama" onclick="switchAnalyser('slama')" style="padding-left:44px;font-size:12px;color:rgba(255,255,255,0.25);">
+          <span class="label">↳ Groupe Slama</span>
+        </button>
+      </div>
+
+      <button class="nav-btn" id="btn-mail" onclick="switchCategory('mail')">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </span>
+        <span class="label">Mail</span>
+      </button>
+
+      <button class="nav-btn" id="btn-summarize" onclick="switchCategory('summarize')">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="9" y2="18"/></svg>
+        </span>
+        <span class="label">Résumé</span>
+      </button>
+
+      <button class="nav-btn" id="btn-excel" onclick="switchCategory('excel')">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>
+        </span>
+        <span class="label">Excel & DAX</span>
+      </button>
+
+      <button class="nav-btn" id="btn-traduction" onclick="switchCategory('traduction')">
+        <span class="icon">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </span>
+        <span class="label">Traduction Pro</span>
+      </button>
+    </aside>
+
+    <!-- ─── Main ─────────────────────────────────────────────── -->
+    <main id="main">
+
+      <!-- ── Left Panel (Entrée) ──────────────────────────── -->
+      <div class="panel" id="panel-input">
+        <div class="panel-header">
+          <div class="panel-title">Entrée</div>
+          <div class="panel-heading" id="panel-heading">Analyser</div>
+        </div>
+
+        <div class="panel-body">
+
+          <!-- Grammar Checker View -->
+          <div class="cat-view" id="view-grammar">
+            <div class="form-group">
+              <label>Mode</label>
+              <div class="mode-toggle">
+                <button class="mode-btn active" id="mode-correct" onclick="setGrammarMode('correct')">✏️ Corriger</button>
+                <button class="mode-btn" id="mode-rewrite" onclick="setGrammarMode('rewrite')">✨ Réécrire</button>
+              </div>
+            </div>
+            <div class="form-group" style="flex:1; min-height:0;">
+              <label for="grammar-input" id="grammar-label">Texte à corriger</label>
+              <textarea
+                id="grammar-input"
+                class="tall"
+                placeholder="Collez votre texte ici…"
+                maxlength="10000"
+                oninput="updateCharCount()"
+                style="flex:1; min-height:0;"
+              ></textarea>
+              <div class="char-counter" id="grammar-counter">0 / 10 000</div>
+            </div>
+            <button class="btn-primary" id="btn-check-grammar" onclick="generatePrompt()">
+              ✦ Corriger
+            </button>
+          </div>
+
+          <!-- Analyser View -->
+          <div class="cat-view visible" id="view-analyser">
+            <div class="form-group" style="flex:1; min-height:0;">
+              <textarea
+                id="analyser-input"
+                class="tall"
+                placeholder="Collez vos données ici…"
+                maxlength="10000"
+                oninput="updateAnalyserCount()"
+                style="flex:1; min-height:0;"
+              ></textarea>
+              <div class="char-counter" id="analyser-counter">0 / 10 000</div>
+            </div>
+            <button class="btn-primary" id="btn-gen-analyser" onclick="generatePrompt()">
+              ✦ Générer le prompt
+            </button>
+          </div>
+
+          <!-- Mail View -->
+          <div class="cat-view" id="view-mail">
+            <div class="form-group">
+              <label for="mail-tone">Ton</label>
+              <select id="mail-tone">
+                <option value="Formel">Formel</option>
+                <option value="Casual">Casual</option>
+                <option value="Urgent">Urgent</option>
+                <option value="Diplomatique">Diplomatique</option>
+                <option value="Persuasif">Persuasif</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1; min-height:0; display:flex; flex-direction:column;">
+              <label for="mail-content">Intention du message</label>
+              <textarea
+                id="mail-content"
+                class="tall"
+                style="flex:1; min-height:0;"
+                maxlength="10000"
+                oninput="updateCounter('mail-content','mail-counter')"
+                placeholder="Ex : Informer mon équipe que la réunion de lundi est reportée à mercredi, et préciser que l'ordre du jour reste inchangé…"
+              ></textarea>
+              <div class="char-counter" id="mail-counter">0 / 10 000</div>
+            </div>
+            <button class="btn-primary" id="btn-gen-mail" onclick="generatePrompt()">
+              ✦ Générer le prompt
+            </button>
+          </div>
+
+          <!-- Summarize View -->
+          <div class="cat-view" id="view-summarize">
+            <div class="form-group">
+              <label for="summarize-format">Format de sortie</label>
+              <select id="summarize-format">
+                <option value="executive">Résumé exécutif (paragraphe court)</option>
+                <option value="paragraph">Paragraphe détaillé</option>
+                <option value="bullets">Points clés (bullet points)</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1; min-height:0;">
+              <label for="summarize-input">Texte à résumer</label>
+              <textarea
+                id="summarize-input"
+                class="tall"
+                style="flex:1; min-height:0;"
+                placeholder="Collez votre document ici…"
+                maxlength="10000"
+                oninput="updateCounter('summarize-input','summarize-counter')"
+              ></textarea>
+              <div class="char-counter" id="summarize-counter">0 / 10 000</div>
+            </div>
+            <button class="btn-primary" onclick="generatePrompt()">
+              ✦ Générer le prompt
+            </button>
+          </div>
+
+          <!-- Excel & DAX View -->
+          <div class="cat-view" id="view-excel">
+            <div class="form-group" style="flex:1; min-height:0;">
+              <label for="excel-input">Ce que vous voulez calculer</label>
+              <textarea
+                id="excel-input"
+                class="tall"
+                style="flex:1; min-height:0;"
+                placeholder="Ex : Je veux calculer le total des ventes du mois en cours, en excluant les retours, groupé par distributeur…"
+                maxlength="10000"
+                oninput="updateCounter('excel-input','excel-counter')"
+              ></textarea>
+              <div class="char-counter" id="excel-counter">0 / 10 000</div>
+            </div>
+            <button class="btn-primary" onclick="generatePrompt()">
+              ✦ Générer le prompt
+            </button>
+          </div>
+
+          <!-- Traduction Pro View -->
+          <div class="cat-view" id="view-traduction">
+            <div class="form-group">
+              <label for="traduction-direction">Direction</label>
+              <select id="traduction-direction">
+                <option value="fr-en">Français → Anglais</option>
+                <option value="en-fr">Anglais → Français</option>
+                <option value="ar-fr">Arabe → Français</option>
+                <option value="fr-ar">Français → Arabe</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1; min-height:0;">
+              <label for="traduction-input">Texte à traduire</label>
+              <textarea
+                id="traduction-input"
+                class="tall"
+                style="flex:1; min-height:0;"
+                placeholder="Collez votre texte ici…"
+                maxlength="10000"
+                oninput="updateCounter('traduction-input','traduction-counter')"
+              ></textarea>
+              <div class="char-counter" id="traduction-counter">0 / 10 000</div>
+            </div>
+            <button class="btn-primary" onclick="generatePrompt()">
+              ✦ Générer le prompt
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ── Right Panel (Output) ────────────────────────── -->
+      <div class="panel" id="panel-output">
+        <div class="output-header">
+          <div class="output-meta">
+            <div class="panel-title">Sortie</div>
+            <div class="panel-heading">Prompt Généré</div>
+          </div>
+        </div>
+
+        <textarea
+          id="output-box"
+          class="empty"
+          readonly
+          spellcheck="false"
+        >Sélectionnez une catégorie et remplissez le formulaire.</textarea>
+
+        <div class="output-footer">
+          <button class="btn-copy" id="btn-copy" onclick="copyPrompt()">
+            📋 Copier le prompt
+          </button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    /* ─── State ──────────────────────────────────────────── */
+    let activeCategory = 'analyser';
+    let grammarMode    = 'correct';
+
+    const PLACEHOLDER = 'Sélectionnez une catégorie et remplissez le formulaire.';
+
+    const HEADINGS = {
+      grammar:    'Grammaire',
+      analyser:   'Analyser — Standard',
+      mail:       'Mail',
+      summarize:  'Résumé',
+      excel:      'Excel',
+      traduction: 'Traduction Pro'
+    };
+
+    let analyserVariant = 'standard';
+
+    function switchAnalyser(variant) {
+      analyserVariant = variant;
+      switchCategory('analyser');
+      // Update heading
+      const names = { standard: 'Analyser — Standard', henkel: 'Analyser — Henkel', samsung: 'Analyser — Samsung', slama: 'Analyser — Groupe Slama' };
+      document.getElementById('panel-heading').textContent = names[variant];
+      // Update sub-item active states
+      document.querySelectorAll('.nav-sub').forEach(b => { b.style.color = 'rgba(255,255,255,0.25)'; b.style.fontWeight = '400'; });
+      const active = document.getElementById('btn-analyser-' + variant);
+      if (active) { active.style.color = '#00C9A7'; active.style.fontWeight = '600'; }
+    }
+
+    /* ─── Category Switch ────────────────────────────────── */
+    function switchCategory(cat) {
+      activeCategory = cat;
+
+      // Update sidebar active state
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('btn-' + cat).classList.add('active');
+
+      // Update panel heading
+      document.getElementById('panel-heading').textContent = HEADINGS[cat];
+
+      // Show correct view
+      document.querySelectorAll('.cat-view').forEach(v => v.classList.remove('visible'));
+      document.getElementById('view-' + cat).classList.add('visible');
+
+      // Show/hide analyser subs
+      const subs = document.getElementById('analyser-subs');
+      if (subs) subs.style.display = cat === 'analyser' ? 'flex' : 'none';
+      if (cat !== 'analyser') { analyserVariant = 'standard'; document.querySelectorAll('.nav-sub').forEach(b => { b.style.color = 'rgba(255,255,255,0.25)'; b.style.fontWeight = '400'; }); }
+
+      // Reset output box
+      const box = document.getElementById('output-box');
+      box.value = PLACEHOLDER;
+      box.classList.add('empty');
+      box.style.animation = 'none';
+    }
+
+    /* ─── Grammar Mode Toggle ────────────────────────────── */
+    function setGrammarMode(mode) {
+      grammarMode = mode;
+      document.getElementById('mode-correct').classList.toggle('active', mode === 'correct');
+      document.getElementById('mode-rewrite').classList.toggle('active', mode === 'rewrite');
+      document.getElementById('grammar-label').textContent =
+        mode === 'correct' ? 'Texte à corriger' : 'Texte à réécrire';
+      document.getElementById('btn-check-grammar').textContent =
+        mode === 'correct' ? '✦ Corriger' : '✦ Réécrire';
+    }
+
+
+    /* ─── Character Counters ─────────────────────────────── */
+    function updateCharCount() {
+      const el  = document.getElementById('grammar-input');
+      const out = document.getElementById('grammar-counter');
+      const len = el.value.length;
+      const max = 10000;
+      out.textContent = formatNum(len) + ' / ' + formatNum(max);
+      out.className   = 'char-counter' + (len > max * 0.9 ? (len >= max ? ' error' : ' warn') : '');
+    }
+
+    function updateAnalyserCount() {
+      updateCounter('analyser-input', 'analyser-counter');
+    }
+
+    function updateCounter(inputId, counterId) {
+      const el  = document.getElementById(inputId);
+      const out = document.getElementById(counterId);
+      if (!el || !out) return;
+      const len = el.value.length;
+      const max = 10000;
+      out.textContent = formatNum(len) + ' / 10 000';
+      out.className   = 'char-counter' + (len > max * 0.9 ? (len >= max ? ' error' : ' warn') : '');
+    }
+
+    function formatNum(n) {
+      return n.toLocaleString('fr-FR');
+    }
+
+    /* ─── Prompt Generation ──────────────────────────────── */
+    function generatePrompt() {
+      let prompt = '';
+
+      if (activeCategory === 'grammar') {
+        const text = document.getElementById('grammar-input').value.trim();
+        if (!text) { showError('grammar-input'); return; }
+
+        if (grammarMode === 'correct') {
+          prompt =
+`You are an expert editor and linguist with 20 years of experience in professional writing and grammar correction.
+
+Your task: Carefully correct the grammar, spelling, punctuation, and syntax of the text below.
+
+Rules:
+- Preserve the original meaning, tone, and voice entirely
+- Fix only what is wrong — do not rephrase or improve style
+- If the text is in French, correct in French. If English, correct in English.
+- The result must sound natural and human — not like AI-generated text.
+
+Output: Return only the final corrected text, nothing else. No explanations, no comments, no comparisons.
+
+───────────────────────────
+${text}
+───────────────────────────`;
+        } else {
+          prompt =
+`You are an expert editor and professional writer with 20 years of experience in business and corporate communication.
+
+Your task: Correct all grammar, spelling, and punctuation errors in the text below, then rephrase it to improve clarity, flow, and professional tone.
+
+Rules:
+- Preserve the original meaning and intent entirely
+- Fix all grammar and language errors first
+- Then improve sentence structure, rhythm, and readability
+- Remove redundancy and awkward phrasing
+- If the text is in French, rewrite in French. If English, rewrite in English.
+- The result must sound natural and human — not like AI-generated text.
+
+Output: Return only the final rewritten text, nothing else. No explanations, no comments.
+
+───────────────────────────
+${text}
+───────────────────────────`;
+        }
+
+      } else if (activeCategory === 'analyser') {
+        const data = document.getElementById('analyser-input').value.trim();
+        if (!data) { showError('analyser-input'); return; }
+
+        const variantContext = {
+          standard: "You are a senior business performance analyst with 15 years of experience in retail markets.",
+          henkel: "You are a senior business performance analyst specializing in FMCG and home care markets (detergents, beauty, adhesives). You have deep knowledge of the Tunisian retail landscape and Henkel brand portfolio including Persil, Pril, Schwarzkopf, and Loctite.",
+          samsung: "You are a senior business performance analyst specializing in consumer electronics and home appliances in the Tunisian market. You have deep knowledge of Samsung product lines including TVs, refrigerators, washing machines, smartphones, and air conditioners.",
+          slama: "You are a senior business performance analyst specializing in FMCG distribution in Tunisia. You have deep knowledge of Groupe Slama's operations as a key distributor across multiple product categories and regional channels."
+        };
+
+        prompt =
+`${variantContext[analyserVariant]}
+
+Your task: Analyze the performance data below and write a concise executive commentary in French, structured in two parts:
+
+1. Alertes majeures — critical performance issues requiring immediate attention, ranked by severity
+2. Tendances observées — significant trends observed, both positive and negative
+
+Rules:
+- Write in French, formal business tone
+- Be direct and factual — no filler, no padding
+- Highlight specific numbers, gaps, and names
+- Do not sound like AI. Write like a sharp human analyst would in a board report.
+- No emojis, no icons, no bullet symbols
+
+Output: Return only the commentary, nothing else.
+
+───────────────────────────
+${data}
+───────────────────────────`;
+
+      } else if (activeCategory === 'mail') {
+        const tone    = document.getElementById('mail-tone').value;
+        const content = document.getElementById('mail-content').value.trim();
+
+        if (!content) { showError('mail-content'); return; }
+
+        const toneGuide = {
+          Formel:       "Tone: formal, respectful, professional. Use appropriate opening and closing formulas.",
+          Casual:       "Tone: relaxed and natural, like writing to someone you know well. Stay clear and friendly.",
+          Urgent:       "Tone: direct and urgent. Get to the point in the first line. No unnecessary detours.",
+          Diplomatique: "Tone: diplomatic and measured. Deliver the message with tact, even if the content is difficult or sensitive.",
+          Persuasif:    "Tone: persuasive and confident. Make a clear case, anticipate objections, and lead the reader toward a decision."
+        };
+
+        prompt =
+`You are a senior professional with 15 years of experience in business communication.
+
+Your task: Write a complete, ready-to-send email in French based on the intention below.
+
+Rules:
+- Write primarily in French. English words or expressions are acceptable when natural in a professional context.
+- ${toneGuide[tone]}
+- Be concise and to the point — no padding, no filler sentences
+- No generic closing lines like "Je reste à votre disposition..." or "N'hésitez pas à me contacter"
+- End with a simple, clean closing: "Cordialement," or "Bien à vous," depending on tone
+- Do not sound like AI — write like a real human professional would
+- No explanations, return only the final email ready to send
+
+Intention: ${content}`;
+
+      } else if (activeCategory === 'summarize') {
+        const format = document.getElementById('summarize-format').value;
+        const text   = document.getElementById('summarize-input').value.trim();
+
+        if (!text) { showError('summarize-input'); return; }
+
+        const formatGuide = {
+          executive: "Output format: one short executive paragraph (5-7 sentences max). Direct, no fluff. Suitable for a busy manager who needs the key message in 30 seconds.",
+          paragraph: "Output format: a detailed paragraph covering the main points, context, and conclusions. Thorough but readable.",
+          bullets:   "Output format: a clean bullet point list of the key points. Each bullet is one clear, standalone idea. No sub-bullets."
+        };
+
+        prompt =
+`You are a senior analyst and expert communicator with 15 years of experience summarizing complex documents for executive audiences.
+
+Your task: Read the document below and produce a clear, accurate summary in the same language as the original text.
+
+Rules:
+- Preserve the key facts, figures, and conclusions — do not omit anything critical
+- Remove all filler, repetition, and unnecessary detail
+- Correct any grammar, spelling, or punctuation errors in the output
+- Do not add your own opinions or interpretations
+- Do not sound like AI — write like a sharp human analyst would
+- ${formatGuide[format]}
+
+Output: Return only the summary, nothing else. No preamble, no comments.
+
+───────────────────────────
+${text}
+───────────────────────────`;
+
+      } else if (activeCategory === 'excel') {
+        const request = document.getElementById('excel-input').value.trim();
+
+        if (!request) { showError('excel-input'); return; }
+
+        prompt =
+`You are an Excel expert with 15 years of experience building complex spreadsheets for business reporting.
+
+Your task: Write the exact Excel formula that does what is described below.
+
+Rules:
+- Provide the complete, ready-to-use formula — nothing partial
+- Explain in 2-3 simple sentences what the formula does and how it works
+- Also explain the formula in Arabic (شرح بالعربية)
+- If there are common mistakes or edge cases to watch out for, mention them briefly
+- End with a simple, concrete example showing the formula in action with sample values
+
+Request: ${request}`;
+
+      } else if (activeCategory === 'traduction') {
+        const direction = document.getElementById('traduction-direction').value;
+        const text      = document.getElementById('traduction-input').value.trim();
+
+        if (!text) { showError('traduction-input'); return; }
+
+        const directionGuide = {
+          'fr-en': { from: 'French', to: 'English' },
+          'en-fr': { from: 'English', to: 'French' },
+          'ar-fr': { from: 'Arabic', to: 'French' },
+          'fr-ar': { from: 'French', to: 'Arabic' }
+        };
+
+        const { from, to } = directionGuide[direction];
+
+        prompt =
+`You are a professional translator and senior business communication expert with 20 years of experience translating corporate documents.
+
+Your task: Translate the text below from ${from} to ${to}.
+
+Rules:
+- Preserve the original meaning, tone, and intent exactly
+- Use natural, professional business language — not literal word-for-word translation
+- Adapt expressions and idioms so they sound native in the target language
+- Do not sound like AI or machine translation — write like a human professional would
+- Do not add explanations or comments
+
+Output: Return only the translated text, nothing else.
+
+───────────────────────────
+${text}
+───────────────────────────`;
+      }
+
+      const box = document.getElementById('output-box');
+      box.value = prompt;
+      box.classList.remove('empty');
+      box.style.animation = 'none';
+      box.offsetHeight;
+      box.style.animation = 'fadeIn 0.3s ease both';
+    }
+
+    /* ─── Error Highlight ────────────────────────────────── */
+    function showError(fieldId) {
+      const el = document.getElementById(fieldId);
+      el.style.borderColor = '#f56565';
+      el.style.boxShadow   = '0 0 0 3px rgba(245,101,101,0.15)';
+      el.focus();
+      setTimeout(() => {
+        el.style.borderColor = '';
+        el.style.boxShadow   = '';
+      }, 1800);
+    }
+
+    /* ─── Copy to Clipboard ──────────────────────────────── */
+    function copyPrompt() {
+      const box = document.getElementById('output-box');
+      const btn = document.getElementById('btn-copy');
+      const text = box.value;
+
+      if (!text || text === PLACEHOLDER) return;
+
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '✓ Copié !';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerHTML = '📋 Copier le prompt';
+          btn.classList.remove('copied');
+        }, 2000);
+      }).catch(() => {
+        // Fallback for older browsers
+        box.select();
+        document.execCommand('copy');
+        btn.textContent = '✓ Copié !';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.innerHTML = '📋 Copier le prompt';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+
+    /* ─── Init ───────────────────────────────────────────── */
+    switchCategory('analyser');
+  </script>
+</body>
+</html>
